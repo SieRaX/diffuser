@@ -87,6 +87,14 @@ class SequenceDataset(torch.utils.data.Dataset):
         batch = Batch(trajectories, conditions)
         return batch
 
+class UnconditionedDataset(SequenceDataset):
+    
+    def get_conditions(self, observations):
+        '''
+            condition on nothing
+        '''
+        return {}
+
 class GoalDataset(SequenceDataset):
 
     def get_conditions(self, observations):
