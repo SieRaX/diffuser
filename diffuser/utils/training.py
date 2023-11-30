@@ -107,7 +107,7 @@ class Trainer(object):
         for step in range(n_train_steps):
             for i in range(self.gradient_accumulate_every):
                 batch = next(self.dataloader)
-                batch = batch_to_device(batch)
+                batch = batch_to_device(batch, device=next(self.model.parameters()).device)
 
                 loss, infos = self.model.loss(*batch)
                 loss = loss / self.gradient_accumulate_every
@@ -180,7 +180,7 @@ class Trainer(object):
 
         ## get trajectories and condition at t=0 from batch
         trajectories = to_np(batch.trajectories)
-        conditions = to_np(batch.conditions[0])[:,None]
+        # conditions = to_np(batch.conditions[0])[:,None]
 
         ## [ batch_size x horizon x observation_dim ]
         normed_observations = trajectories[:, :, self.dataset.action_dim:]
@@ -216,24 +216,25 @@ class Trainer(object):
             )
 
             ## [ n_samples x horizon x (action_dim + observation_dim) ]
-            samples = self.ema_model.conditional_sample(conditions)
+            samples = self.ema_model.conditional_sample(conditions, batch_size = n_samples)
             samples = to_np(samples)
 
             ## [ n_samples x horizon x observation_dim ]
             normed_observations = samples[:, :, self.dataset.action_dim:]
+            
+            if len(batch.conditions) != 0:         
+                # [ 1 x 1 x observation_dim ]
+                normed_conditions = to_np(batch.conditions[0])[:,None]
 
-            # [ 1 x 1 x observation_dim ]
-            normed_conditions = to_np(batch.conditions[0])[:,None]
+                # from diffusion.datasets.preprocessing import blocks_cumsum_quat
+                # observations = conditions + blocks_cumsum_quat(deltas)
+                # observations = conditions + deltas.cumsum(axis=1)
 
-            # from diffusion.datasets.preprocessing import blocks_cumsum_quat
-            # observations = conditions + blocks_cumsum_quat(deltas)
-            # observations = conditions + deltas.cumsum(axis=1)
-
-            ## [ n_samples x (horizon + 1) x observation_dim ]
-            normed_observations = np.concatenate([
-                np.repeat(normed_conditions, n_samples, axis=0),
-                normed_observations
-            ], axis=1)
+                ## [ n_samples x (horizon + 1) x observation_dim ]
+                normed_observations = np.concatenate([
+                    np.repeat(normed_conditions, n_samples, axis=0),
+                    normed_observations
+                ], axis=1)
 
             ## [ n_samples x (horizon + 1) x observation_dim ]
             observations = self.dataset.normalizer.unnormalize(normed_observations, 'observations')
