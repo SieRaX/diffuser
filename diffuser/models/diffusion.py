@@ -162,12 +162,16 @@ class GaussianDiffusion(nn.Module):
             return x
 
     @torch.no_grad()
-    def conditional_sample(self, cond, *args, horizon=None, **kwargs):
+    def conditional_sample(self, cond, *args, horizon=None, batch_size = None, **kwargs):
         '''
             conditions : [ (time, state), ... ]
         '''
         device = self.betas.device
-        batch_size = len(cond[0])
+        
+        if len(cond) == 0:
+            batch_size = batch_size
+        else:
+            batch_size = len(cond[0])
         horizon = horizon or self.horizon
         shape = (batch_size, horizon, self.transition_dim)
 
