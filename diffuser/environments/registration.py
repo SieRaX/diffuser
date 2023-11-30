@@ -17,6 +17,11 @@ ENVIRONMENT_SPECS = (
         'id': 'AntFullObs-v2',
         'entry_point': ('diffuser.environments.ant:AntFullObsEnv'),
     },
+    {
+        'id': 'maze2d-open-v1',
+        'max_episode_steps': 150,
+        'entry_point': ('diffuser.environments.maze2d:Maze2dOpenEnv'),
+    }
 )
 
 def register_environments():
