@@ -5,6 +5,17 @@ import collections
 from tqdm import tqdm
 import h5py
 
+def get_ref_trajectory(start_loc_org, target_loc_org, intersection_point, ratio, scale=0.1):
+    
+    xp = np.linspace(0, 1, len(intersection_point)+2)
+    
+    inter_point = np.stack([start_loc_org, *intersection_point, target_loc_org], axis=0)
+    
+    ref_trajectory = np.stack([np.interp(ratio, xp, inter_point[:, 0]), np.interp(ratio, xp, inter_point[:, 1])], axis=1)
+    ref_trajectory = ref_trajectory + scale * np.random.randn(*ref_trajectory.shape)
+    
+    return ref_trajectory
+
 def insert_transitions(env, start_loc_org, target_loc_org, time_step, p_gain, d_gain, dataset, num_episode=300, intersection_point=[]):
     for _ in tqdm(range(num_episode)):
         # start_loc = start_loc_org + np.random.uniform(low=-.1, high=.1, size=start_loc_org.shape)
@@ -12,13 +23,15 @@ def insert_transitions(env, start_loc_org, target_loc_org, time_step, p_gain, d_
         
         # ratio = np.sort(np.random.uniform(size=time_step))
         ratio = np.linspace(0, 1, num=time_step)
-        xp = np.linspace(0, 1, len(intersection_point)+2)
+        # xp = np.linspace(0, 1, len(intersection_point)+2)
         
-        inter_point = np.stack([start_loc_org, *intersection_point, target_loc_org], axis=0)
-        # inter_point = inter_point + np.random.uniform(low=-.001, high=.001, size=inter_point.shape)
+        # inter_point = np.stack([start_loc_org, *intersection_point, target_loc_org], axis=0)
+        # # inter_point = inter_point + np.random.uniform(low=-.001, high=.001, size=inter_point.shape)
 
-        ref_trajectory = np.stack([np.interp(ratio, xp, inter_point[:, 0]), np.interp(ratio, xp, inter_point[:, 1])], axis=1)
-        ref_trajectory = ref_trajectory + 0.1 * np.random.randn(*ref_trajectory.shape)
+        # ref_trajectory = np.stack([np.interp(ratio, xp, inter_point[:, 0]), np.interp(ratio, xp, inter_point[:, 1])], axis=1)
+        # ref_trajectory = ref_trajectory + 0.1 * np.random.randn(*ref_trajectory.shape)
+        
+        ref_trajectory = get_ref_trajectory(start_loc_org=start_loc_org, target_loc_org=target_loc_org, intersection_point=intersection_point, ratio=ratio)
         ref_trajectory = np.concatenate([ref_trajectory, np.expand_dims(ref_trajectory[-1], axis=0).repeat([env.max_episode_steps - time_step], axis=0)])
         
         env.reset()
@@ -109,37 +122,66 @@ class Maze2dOpenStateEnv(MazeEnv):
         
     def get_dataset(self, h5path=None):
         
-        dataname = "maze2d-open-sparse-v4-state"
+        dataname = "maze2d-open-sparse-stateonly-sgm0.1"
         h5path = os.path.join("/home/cspark/.d4rl/datasets/", f"{dataname}.hdf5")
         
         if os.path.exists(h5path):    
             dataset = super().get_dataset(h5path=h5path)
         else:
-        
-            wrapped_env = Maze2dOpenEnv()
-            env = wrapped_env
-            env.max_episode_steps = 150
+            print(f"[ environments/maze2d ] getting dataset for {dataname}")
             
-            # control 
-            time_step = 140
-            p_gain = 10.0
-            d_gain = -1.0
+            dataset = collections.defaultdict(list)            
+            for key in ['observations', 'actions', 'rewards', 'terminals', 'info/goal', 'info/qpos', 'info/qvel']:
+                dataset[key] = []
+            
+            intersection_point = [[2, 2], [2, 4]]
 
-            dataset = collections.defaultdict(list)
-            intersection_point = [[2, 3], [2, 5]]
+            start_loc_org = np.array([1.2, 1], dtype=float)
+            target_loc_org = np.array([2.8, 5], dtype=float)
             
-            print(f"getting dataset for {dataname}")
-            start_loc_org = np.array([2, 1], dtype=float)
-            target_loc_org = np.array([3, 5], dtype=float)
-            insert_transitions(env, start_loc_org, target_loc_org, time_step, p_gain, d_gain, dataset, intersection_point=intersection_point)
-            
-            start_loc_org = np.array([2, 1], dtype=float)
-            target_loc_org = np.array([1, 5], dtype=float)
-            insert_transitions(env, start_loc_org, target_loc_org, time_step, p_gain, d_gain, dataset, intersection_point=intersection_point)
+            ratio = np.linspace(0, 1, 8)
+            scale = 0.1
+
+            for _ in range(1000):
+                ref_trjectory = get_ref_trajectory(start_loc_org, target_loc_org, intersection_point, ratio, scale=scale)
+                ref_trjectory = np.concatenate([ref_trjectory, np.tile(ref_trjectory[-1:, :], (2, 1))])
+                T = ref_trjectory.shape[0]
+                dataset['observations'].append(np.tile(ref_trjectory, 2))
+                dataset['actions'].append(np.random.randn(T, 2))
+                rewards = np.zeros((T, ), float)
+                rewards[-1] = 1.0
+                dataset['rewards'].append(rewards)
+                terminals = np.full((T, ), False)
+                terminals[-1] = True
+                dataset['terminals'].append(terminals)
+                dataset['timeouts'].append(terminals)
+                dataset['info/goal'].append(np.repeat(np.expand_dims(target_loc_org, axis=0), T, axis=0))
+                dataset['info/qpos'].append(np.random.randn(*np.tile(ref_trjectory, 2).shape))
+                dataset['info/qvel'].append(np.random.randn(*np.tile(ref_trjectory, 2).shape))
+                
+            start_loc_org = np.array([2.8, 1], dtype=float)
+            target_loc_org = np.array([1.2, 5], dtype=float)
+
+            for _ in range(1000):
+                ref_trjectory = get_ref_trajectory(start_loc_org, target_loc_org, intersection_point, ratio, scale=scale)
+                ref_trjectory = np.concatenate([ref_trjectory, np.tile(ref_trjectory[-1:, :], (2, 1))])
+                T = ref_trjectory.shape[0]
+                dataset['observations'].append(np.tile(ref_trjectory, 2))
+                dataset['actions'].append(np.random.randn(T, 2))
+                rewards = np.zeros((T, ), float)
+                rewards[-1] = 1.0
+                dataset['rewards'].append(rewards)
+                terminals = np.full((T, ), False)
+                terminals[-1] = True
+                dataset['terminals'].append(terminals)
+                dataset['timeouts'].append(terminals)
+                dataset['info/goal'].append(np.repeat(np.expand_dims(target_loc_org, axis=0), T, axis=0))
+                dataset['info/qpos'].append(np.random.randn(*np.tile(ref_trjectory, 2).shape))
+                dataset['info/qvel'].append(np.random.randn(*np.tile(ref_trjectory, 2).shape))
             
 
             for key, val in dataset.items():
-                dataset[key] = np.stack(val, axis=0)
+                dataset[key] = np.concatenate(val, axis=0)
             
             save_dataset_h5py = h5py.File(h5path, 'w')
             for k in dataset:

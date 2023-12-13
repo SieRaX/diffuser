@@ -85,6 +85,15 @@ def maze2d_set_terminals(env):
 
     return _fn
 
+def maz2d_only_state(env):
+    
+    def _fn(dataset):
+        dataset['observations'] = dataset['observations'][:, :2]
+        dataset['actions'] = np.random.randn(dataset['actions'].shape[0], 0)
+        
+        return dataset
+    
+    return _fn
 
 #-------------------------- block-stacking --------------------------#
 
