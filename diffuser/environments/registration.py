@@ -21,7 +21,13 @@ ENVIRONMENT_SPECS = (
         'id': 'maze2d-open-v1',
         'max_episode_steps': 150,
         'entry_point': ('diffuser.environments.maze2d:Maze2dOpenEnv'),
-    }
+    },
+    {
+        'id': 'maze2d-open-v1-state',
+        'max_episode_steps': 10,
+        'entry_point': ('diffuser.environments.maze2d:Maze2dOpenStateEnv'),
+    },
+    
 )
 
 def register_environments():
