@@ -122,10 +122,11 @@ class Maze2dOpenStateEnv(MazeEnv):
         
     def get_dataset(self, h5path=None):
         
-        dataname = "maze2d-open-sparse-stateonly-sgm0.1"
+        dataname = "maze2d-open-sparse-stateonly-sgm0.2-skewed"
         h5path = os.path.join("/home/cspark/.d4rl/datasets/", f"{dataname}.hdf5")
         
-        if os.path.exists(h5path):    
+        # if os.path.exists(h5path):
+        if False:
             dataset = super().get_dataset(h5path=h5path)
         else:
             print(f"[ environments/maze2d ] getting dataset for {dataname}")
@@ -139,8 +140,8 @@ class Maze2dOpenStateEnv(MazeEnv):
             start_loc_org = np.array([1.2, 1], dtype=float)
             target_loc_org = np.array([2.8, 5], dtype=float)
             
-            ratio = np.linspace(0, 1, 8)
-            scale = 0.1
+            ratio = np.linspace(0, 1, 128)
+            scale = 0.05
 
             for _ in range(1000):
                 ref_trjectory = get_ref_trajectory(start_loc_org, target_loc_org, intersection_point, ratio, scale=scale)

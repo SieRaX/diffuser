@@ -9,8 +9,8 @@ import numpy as np
 horizon = 128
 
 env_name = 'maze2d-open-v1'
-device = 1
-savepath = f"logs/maze2d-open-v2/wo_conditon_H{horizon}"
+device = 0
+savepath = f"logs/maze2d-open-v2/w_conditon_H{horizon}_long_intersection_length-sliced"
 os.makedirs(savepath, exist_ok=True)
 
 # get dataset
@@ -73,14 +73,13 @@ trainer = Trainer(
     ema_decay=0.995,
     sample_freq=1000,
     save_freq=1000,
-    label_freq=int(2e6//50),
+    label_freq=int(2e5//50),
     save_parallel=False,
     results_folder=savepath,
     bucket=None,
     n_reference=50,
     n_samples=10,
 )
-
 from diffuser import utils
 
 utils.report_parameters(model)
